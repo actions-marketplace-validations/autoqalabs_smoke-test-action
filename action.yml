@@ -1,0 +1,68 @@
+name: AutoQALabs Smoke Test
+description: Run a fast Playwright smoke test against a deployed site and report the results on the job summary.
+author: AutoQALabs
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  url:
+    description: Base URL of the deployment to test, e.g. https://preview.example.com
+    required: true
+  paths:
+    description: Paths to check, one per line or comma separated.
+    required: false
+    default: /
+  expect-text:
+    description: Optional text that must appear on every checked page.
+    required: false
+    default: ""
+  fail-on-console-errors:
+    description: Fail a page if it logs console errors or throws uncaught exceptions.
+    required: false
+    default: "true"
+  timeout:
+    description: Per-page timeout in milliseconds.
+    required: false
+    default: "30000"
+  screenshots:
+    description: Save a full-page screenshot of each failed page to smoke-results/.
+    required: false
+    default: "true"
+
+outputs:
+  passed:
+    description: Number of pages that passed.
+    value: ${{ steps.smoke.outputs.passed }}
+  failed:
+    description: Number of pages that failed.
+    value: ${{ steps.smoke.outputs.failed }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci --omit=dev --no-audit --no-fund
+
+    - name: Install Chromium
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npx playwright install --with-deps chromium
+
+    - name: Run smoke test
+      id: smoke
+      shell: bash
+      run: node "${{ github.action_path }}/src/smoke.mjs"
+      env:
+        SMOKE_URL: ${{ inputs.url }}
+        SMOKE_PATHS: ${{ inputs.paths }}
+        SMOKE_EXPECT_TEXT: ${{ inputs.expect-text }}
+        SMOKE_FAIL_ON_CONSOLE_ERRORS: ${{ inputs.fail-on-console-errors }}
+        SMOKE_TIMEOUT: ${{ inputs.timeout }}
+        SMOKE_SCREENSHOTS: ${{ inputs.screenshots }}

@@ -1,0 +1,36 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  passing-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Serve fixture site
+        run: python3 -m http.server 8080 --directory test/site &
+      - uses: ./
+        with:
+          url: http://localhost:8080
+          paths: |
+            /
+            /about.html
+          expect-text: Hello from the fixture site
+
+  failing-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Serve fixture site
+        run: python3 -m http.server 8080 --directory test/site &
+      - id: smoke
+        uses: ./
+        continue-on-error: true
+        with:
+          url: http://localhost:8080
+          paths: /broken.html, /missing.html
+      - name: Expect both pages to fail
+        run: test "${{ steps.smoke.outputs.failed }}" = "2"
